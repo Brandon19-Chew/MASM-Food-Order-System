@@ -1,0 +1,2744 @@
+.MODEL SMALL
+.STACK 100h
+
+.DATA
+
+; Data for logo
+Logo DB "                                      ", 0dH, 0aH
+     DB "    __________                 __________      ", 0dH, 0aH
+     DB "   |  ________|               |  ________|     ", 0dH, 0aH
+     DB "   | |           ___________  | |          ", 0dH, 0aH
+     DB "   | |          |  _______  | | |          ", 0dH, 0aH
+     DB "   | |________  | |       | | | |________   ", 0dH, 0aH
+     DB "   |  ________| | |       | | |________  |     ", 0dH, 0aH
+     DB "   | |          | |  FOOD | |  _       | |     ", 0dH, 0aH
+     DB "   | |          | |  HUB  | | | |      | |     ", 0dH, 0aH
+     DB "   | |          | |_______| | | |______| |     ", 0dH, 0aH
+     DB "   |_|          |___________| |__________|     ", 0dH, 0aH, "$"
+
+
+
+; Main Menu 
+mainMenu DB 13, 10, "  ==================================================== ", 13, 10
+         DB         " [     Please Select The Option From Main Menu        ]", 13, 10
+         DB         "  ==================================================== ", 13, 10
+         DB         " [                                                    ]", 13, 10
+         DB         " [  1. Admin                                          ]", 13, 10
+         DB         " [  2. User                                           ]", 13, 10
+         DB         " [  0. Exit Program                                   ]", 13, 10
+         DB         "  ==================================================== ", 13, 10, "$"
+
+; Admin panel
+adminPanel DB 13, 10, "  ==================================================== ", 13, 10
+           DB         " [____________WELCOME TO THE ADMIN PANEL !____________]", 13, 10
+           DB         " [                                                    ]", 13, 10
+           DB         " [  1. Display Users                                  ]", 13, 10
+           DB         " [  0. Log Out                                        ]", 13, 10
+           DB         "  ==================================================== ", 13, 10, "$"
+
+; User prompt message
+promptMsg DB 0DH,0AH,"Enter Option: $"
+
+; Error message
+errorMsg DB 0AH,13, 10, "Invalid option! Please Try Again.$"
+
+; Admin password
+adminPassword DB 'admin$'
+
+; Admin login prompts and messages
+passwordPrompt DB 0AH,13, 10, "Enter Admin Password: $"
+loginSuccess DB 0AH,13, 10, "Login Successful! $"
+loginFail DB 0AH,13, 10, "Login Failed. Please Try Again.$"
+
+; Buffer for input
+buffer DB 20 DUP(0)
+
+; Term Order (For fun only)
+Term  DB 13, 10, "  ================================================================= ", 13, 10   
+      DB         " [_____________TERM AND CONDITION ABOUT THE ACCOUNT________________]", 13, 10  
+      DB         " [                                                                 ]", 13, 10
+      DB         " [ 1. Account Creation                                             ]", 13, 10
+      DB         " [  1.1. Eligibility:  You must be at least 10 years old to        ]", 13, 10
+      DB         " [                     create an account.                          ]", 13, 10
+      DB         " [                                                                 ]", 13, 10
+      DB         " [  1.2. Information:  You agree to provide accurate,and complete  ]", 13, 10
+      DB         " [                     information during the registration process ]", 13, 10
+      DB         " [                     and update such information to keep  it     ]", 13, 10
+      DB         " [                     accurate, current, and complete.            ]", 13, 10
+      DB         " [                                                                 ]", 13, 10
+      DB         " [  1.3. Personal Use: Your account is for your personal use only. ]", 13, 10
+      DB         " [                     You may not share your account with others. ]", 13, 10
+      DB         " [                                                                 ]", 13, 10
+      DB         " [                        0. BACK USER MENU                        ]", 13, 10
+      DB         "  ================================================================= ", 13, 10, "$"
+
+; User (create, display, login and logout) - Expanded to 5 accounts
+; Account 1
+USERNAME1 DB 20 DUP('$')
+PASSWORD1 DB 20 DUP('$')
+; Account 2
+USERNAME2 DB 20 DUP('$')
+PASSWORD2 DB 20 DUP('$')
+; Account 3
+USERNAME3 DB 20 DUP('$')
+PASSWORD3 DB 20 DUP('$')
+; Account 4
+USERNAME4 DB 20 DUP('$')
+PASSWORD4 DB 20 DUP('$')
+; Account 5
+USERNAME5 DB 20 DUP('$')
+PASSWORD5 DB 20 DUP('$')
+
+BALANCE DD 0, 0, 0, 0, 0
+
+; Login variables
+LOGIN_USER DB 20 DUP('$')
+LOGIN_PASS DB 20 DUP('$')
+
+; Messages
+PROMPT_USER DB 13,10,"Create a username: $"
+PROMPT_PASS DB 13,10,"Create a password: $"
+LOGIN_NAME DB 13,10,"Enter your username: $"
+LOGIN_PASS_MSG DB 13,10,"Enter your password: $"
+SUCCESS_MSG DB 13,10,"Login successful!$"
+SUCCESS_MSG_EMPTY DB 13, 10, "$"
+FAILURE_MSG DB 13,10,"Login failed. Please try again.$"
+CREATE_SUS DB 13,10,"Account Successfully created!$"
+HEADER_MSG DB 13,10,"Account Information: $"
+USERNAME_LABEL DB 13,10,"Username: $"
+PASSWORD_LABEL DB 13,10,"Password: $"
+NO_ACCOUNTS_FOUNDS DB 13,10,"No Account Found!$"
+DATABASE_FULL_ACCOUNTS DB 13,10,"Reach max create accounts!$"
+ATTEMPT_COUNT DB 0
+EXIT_MSG DB 13,10,"Too many failed attempts. Exiting the program.$"
+NEWLINE DB 13,10,"$"
+
+; Account label messages - for all 5 accounts
+Acc1 DB 13,10, "Account user --> 1$"
+Acc2 DB 13,10, "Account user --> 2$"
+Acc3 DB 13,10, "Account user --> 3$"
+Acc4 DB 13,10, "Account user --> 4$"
+Acc5 DB 13,10, "Account user --> 5$"
+
+
+; Menu and choices
+MENU DB 13, 10, " =================================================== ", 13, 10
+     DB         "[____________WELCOME TO THE USER PANEL!_____________]", 13, 10
+     DB         "[                                                   ]", 13, 10
+     DB         "[  1. Create Account                                ]", 13, 10
+     DB         "[  2. Login Account                                 ]", 13, 10
+     DB         "[  3. Terms and Conditions                          ]", 13, 10
+     DB         "[  0. Back                                          ]", 13, 10
+     DB         " =================================================== ", 13, 10, "$"
+
+CHOICE DB ?
+
+; New menu for balance information
+UserIdentity DB 13, 10, " ================================================== ", 13, 10
+             DB         "[______________ BALANCE INFORMATION _______________]", 13, 10
+             DB         "[                                                  ]", 13, 10
+             DB         "[ 1. Top-up Credit                                 ]", 13, 10
+             DB         "[ 2. Check The Balance                             ]", 13, 10
+             DB         "[ 3. Foods and Drinks                              ]", 13, 10
+             DB         "[ 4. View Cart/CheckOut                            ]", 13, 10
+             DB         "[ 0. Log Out                                       ]", 13, 10
+             DB         " ================================================== ", 13, 10, "$"
+LOG_OUT DB 13,10, "You have logged out!$"
+
+; Current account number during creation/checking
+ACCOUNT_NUMBER DB 0
+; Variable for decimal input
+DECIMAL_INPUT DB 6 DUP(?)  ; To store the decimal input as a string (XXX.XX)
+CURRENT_USER DB ?  ; To store the current user ID
+
+; Constant for max balance (999.99 in cents)
+MAX_BALANCE DD 99999  ; 999.99 * 100 cents
+    
+; Constant for max top-up (600.00 in cents)
+MAX_TOPUP DD 60000  ; 600.00 * 100 cents
+
+; Top-up menu
+TopUpMenu DB 13,10,"=====================================================",13,10
+             DB       "|               SELECT TOP-UP AMOUNT                |",13,10
+             DB       "|---------------------------------------------------|",13,10
+             DB       "|         MAX BALANCE UP TO RM 999.99 ONLY          |",13,10
+             DB       "|---------------------------------------------------|",13,10
+             DB       "|   1. RM  25.00                                    |",13,10
+             DB       "|   2. RM  50.00                                    |",13,10
+             DB       "|   3. RM 100.00                                    |",13,10
+             DB       "|   4. RM 200.00                                    |",13,10
+             DB       "|   5. RM 300.00                                    |",13,10
+             DB       "|   6. RM 500.00                                    |",13,10
+             DB       "|   7. BACK                                         |",13,10
+             DB       "=====================================================",13,10,"$"
+; Show the user account balance
+M15 DB 13,10,"Current Balance Is --> RM $"
+M18 DB 13,10,"Max top-up balance have reached !$"
+M20 DB 13,10,"Top-up amount cannot exceed RM 600.00$"
+M17 DB 13,10,"Do you want to continue? (1. Yes 2. No): $"
+
+nl        DB 0AH,0DH,"$"
+        food_Menu DB 13,10,"  ===================================================== ",13,10
+                  DB " [                      Food Menu                      ]",13,10
+                  DB " [_____________________________________________________]",13,10
+                  DB " [                                                     ]",13,10
+                  DB " [  1. Fried Crispy Chicken   - RM 13.00               ]",13,10
+                  DB " [  2. Grilled Smokey Chicken - RM 14.00               ]",13,10
+                  DB " [  3. Grilled Smokey Fish    - RM 19.00               ]",13,10
+                  DB " [  4. 100 Plus               - RM 03.00               ]",13,10
+                  DB " [  5. Icecream Soda          - RM 05.00               ]",13,10
+                  DB " [  0. Back                                            ]",13,10
+                  DB "  ===================================================== ",13,10,"$"
+        str1 DB "How many Quantity?: $"
+        str2 DB "Please confirm the Order (Y/N): $"
+        str3 DB "Successfully added to cart!$"
+        str4 DB "1. Continue order? 2. Checkout 3. Back$"
+        str5 DB "Cart is Full! Item will be remove.$"
+        str6 DB "Incorrect Input. Try Again.$"
+        str7 DB ".00$"
+        checkout_Page DB 13,10," ====================================================== ",13,10
+                  DB " [                       CheckOut                      ]",13,10
+                  DB " ======================================================= ",13,10
+                  DB " No Product                 Qty  Unit Price  Total Price",13,10,"$"
+        ERROR404 DB "Something went wrong!$"
+        str8 DB " ======================================================= ",13,10
+             DB "                                   Total Price: $"
+        str9 DB "1. Payment 2. Back$"
+        str10 DB "Not Enough Balance! Please Top-up.$"
+        str11 DB "1. Check Balance 2. Back To Home$"
+        str12 DB "Payment Successfully!$"
+        str13 DB "Are you sure you want to Logout?", 13,10
+              DB "After Logout the cart will be clear.", 13,10
+              DB "1. Yes 2. No : ","$"
+        str14 DB "Cart Is Empty!$"
+        str15 DB "ARE YOU SURE YOU WANT TO EXIT THE PROGRAM? (Y/N): $"
+        str16 DB "Enter any key to continue.$"
+
+
+        ;Variables
+        CART_PRODUCT DB 50 DUP('$')
+        CART_PRODUCT_LENGTH DB 50 DUP('$')
+        CART_PRODUCT_QUATITY DB 50 DUP('$')
+        CART_TOTAL_STR DB 50 DUP('$')
+        CART_TOTAL DD 0
+        CART_COUNT DB 0
+
+        FOOD_PRICE DD 1300, 1400, 1900, 300, 500
+        FOOD_PRICE_STR DB "13.00$", "14.00$", "19.00$", "03.00$", "05.00$"
+        PRODUCT DB "Fried Crispy Chicken$", "Grilled Smokey Chicken$", "Grilled Smokey Fish$", "100 Plus$", "Icecream Soda$"
+        CAL_CURRENT_PRODUCT DB 0
+        CURRENT_PRODUCT DB 0
+        TEMP_BUFFER DB 10 DUP(0)
+        INDEX_NUM DB 1
+        TEMP_LOW  DW ?
+        TEMP_HIGH DW ?
+
+        ;Inputs
+        input_Opt DB ?
+        input_Qty DB ?
+
+.CODE
+
+MAIN PROC
+    MOV AX, @DATA
+    MOV DS, AX
+
+main_loop:
+; Clear screen function
+    MOV AX, 0600h
+    MOV BH, 07h
+    MOV CX, 0000h
+    MOV DX, 184Fh
+    INT 10h
+
+    ; PRINT LOGO
+    MOV AH, 09H
+    LEA DX, Logo
+    INT 21H
+
+    ; Display menu
+    MOV AH, 09h
+    LEA DX, mainMenu
+    INT 21h
+
+    ; Display user prompt message
+    MOV AH, 09h
+    LEA DX, promptMsg
+    INT 21h
+
+    ; Read user input
+    MOV AH, 01h
+    INT 21h
+    SUB AL, '0'
+    MOV BL, AL
+
+    ; Check if input is valid
+    CMP BL, 1
+    JE Admin
+    CMP BL, 2
+    JE User
+    CMP BL, 0
+    JE EndProgramFirst
+    JMP InvalidInput
+
+Admin:
+    CALL AdminLogin
+    JMP main_loop
+
+User:
+    CALL User_Login
+    JMP main_loop
+
+EndProgramFirst:
+    MOV AH, 09h
+    LEA DX, nl
+    INT 21h
+    
+    MOV AH, 09h
+    LEA DX, str15
+    INT 21h
+
+    MOV AH, 01H
+    INT 21H
+    MOV BL, AL
+
+    CMP BL, 'y'
+    JE FIN
+    CMP BL, 'Y'
+    JE FIN
+    CMP BL, 'N'
+    JE main_loop
+    CMP BL, 'n'
+    JE main_loop
+    JMP InvalidInput
+
+    FIN:
+    MOV AH, 4Ch
+    INT 21h
+
+InvalidInput:
+    ; Display error message
+    MOV AH, 09h
+    LEA DX, errorMsg
+    INT 21h
+    MOV AH, 01H
+    INT 21H
+    MOV BL, AL
+    JMP main_loop
+
+MAIN ENDP
+
+AdminLogin PROC
+    ; Display password prompt
+    MOV AH, 09h
+    LEA DX, passwordPrompt
+    INT 21h
+
+    ; Read password
+    MOV SI, 00
+
+    up1:
+        MOV AH, 08h
+        INT 21h
+        CMP AL, 0dh
+        JE down
+        MOV [buffer+SI], AL
+        MOV DL, '*'
+        MOV AH, 02h
+        INT 21h
+        INC SI
+        JMP up1
+
+    down:
+        MOV BX, 00
+        MOV CX, 5
+
+    check:
+        MOV AL, [buffer+BX]
+        MOV DL, [adminPassword+BX]
+        CMP AL, DL
+        JNE fail
+        INC BX
+        LOOP check
+
+    correct:
+        MOV AH, 09h
+        LEA DX, loginSuccess
+        INT 21h
+
+        MOV AX, 0040h
+    MOV ES, AX
+    MOV SI, 006Ch          ; Timer tick count
+    MOV AX, ES:[SI]        ; Get current tick count
+    ADD AX, 36             ; 36 ticks ≈ 2 seconds
+
+WAIT_TICKS6:
+    CMP ES:[SI], AX
+    JB WAIT_TICKS6
+        AdminPanelLoop:
+        ; Display admin panel
+        CALL DisplayAdminPanel
+        CALL PROMPTSecond
+        CMP BL, 1
+        JE DISPLAY_ACCOUNTS        
+        CMP BL, 0
+        JE Log_Outa
+        JMP InvalidInputSecond
+    DISPLAY_ACCOUNTS:
+        JMP DISPLAY_ACCOUNT
+        
+    Log_Outa: 
+        ; Clear screen function
+        MOV AX, 0600h
+        MOV BH, 07h
+        MOV CX, 0000h
+        MOV DX, 184Fh
+        INT 10h
+
+        ; PRINT LOGO
+        MOV AH, 09H
+        LEA DX, Logo
+        INT 21H
+
+        ; Display menu
+        MOV AH, 09h
+        LEA DX, mainMenu
+        INT 21h
+
+        ; Return to main loop
+        JMP MAIN
+
+    InvalidInputSecond:
+        ; Display error message
+        MOV AH, 09h
+        LEA DX, errorMsg
+        INT 21h
+        JMP AdminPanelLoop
+
+    fail:
+        ; Login failed
+        MOV AH, 09h
+        LEA DX, loginFail
+        INT 21h
+        JMP LoginEnd
+
+    LoginEnd:
+        RET
+AdminLogin ENDP
+
+CompareStrings PROC
+    ; Compare two strings
+    ; SI - pointer to first string
+    ; DI - pointer to second string
+    MOV CX, 0
+    MOV AL, [SI]
+    MOV BL, [DI]
+
+    CompareLoop:
+        CMP AL, 0
+        JE  StringsEqual
+        CMP AL, BL
+        JNE StringsNotEqual
+        INC SI
+        INC DI
+        MOV AL, [SI]
+        MOV BL, [DI]
+        JMP CompareLoop
+
+    StringsEqual:
+        XOR AX, AX
+        RET
+
+    StringsNotEqual:
+        MOV AX, 1
+        RET
+        
+CompareStrings ENDP
+
+DisplayAdminPanel PROC
+    ; Clear screen function
+    MOV AX, 0600h
+    MOV BH, 07h
+    MOV CX, 0000h
+    MOV DX, 184Fh
+    INT 10h   
+
+    ; Display admin panel options
+    MOV AH, 09h
+    LEA DX, adminPanel
+    INT 21h
+    RET
+    
+DisplayAdminPanel ENDP
+
+PROMPTSecond PROC
+    ; Display user prompt message
+    MOV AH, 09h
+    LEA DX, promptMsg
+    INT 21h
+    
+    ; Read user input
+    MOV AH, 01h
+    INT 21h
+    SUB AL, '0'
+    MOV BL, AL
+    RET
+
+PROMPTSecond ENDP
+
+DISPLAY_ACCOUNT PROC
+    ; Display header
+    MOV AH, 09H
+    LEA DX, HEADER_MSG
+    INT 21H
+
+    ; Check and display all Five accounts
+    
+    ; Account 1
+    LEA SI, USERNAME1 + 1
+    MOV AL, [SI]
+    CMP AL, '$'
+    JE CHECK_ACCOUNT2
+    
+    ; Display first account's username
+    MOV AH, 09H
+    LEA DX, USERNAME_LABEL
+    INT 21H
+    LEA SI, USERNAME1 + 1
+    CALL DISPLAY_STRING
+    
+    ; Display first account's password
+    MOV AH, 09H
+    LEA DX, PASSWORD_LABEL
+    INT 21H
+    LEA SI, PASSWORD1 + 1
+    CALL DISPLAY_STRING
+    
+    MOV AH, 09h
+    LEA DX, Acc1
+    INT 21h
+    
+    MOV AH, 09H
+    LEA DX, NEWLINE
+    INT 21H
+    JMP CON1
+
+CHECK_ACCOUNT2:
+    ; Account 2
+    LEA SI, USERNAME2 + 1
+    MOV AL, [SI]
+    CMP AL, '$'
+    JE CHECK_ACCOUNT3
+    
+    ; Display second account's username
+    MOV AH, 09H
+    LEA DX, USERNAME_LABEL
+    INT 21H
+    LEA SI, USERNAME2 + 1
+    CALL DISPLAY_STRING
+    
+    ; Display second account's password
+    MOV AH, 09H
+    LEA DX, PASSWORD_LABEL
+    INT 21H
+    LEA SI, PASSWORD2 + 1
+    CALL DISPLAY_STRING
+    
+    MOV AH, 09h
+    LEA DX, Acc2
+    INT 21h
+    
+    MOV AH, 09H
+    LEA DX, NEWLINE
+    INT 21H
+    JMP CON1
+
+CHECK_ACCOUNT3:
+    ; Account 3
+    LEA SI, USERNAME3 + 1
+    MOV AL, [SI]
+    CMP AL, '$'
+    JE CHECK_ACCOUNT4
+    
+    ; Display third account's username
+    MOV AH, 09H
+    LEA DX, USERNAME_LABEL
+    INT 21H
+    LEA SI, USERNAME3 + 1
+    CALL DISPLAY_STRING
+    
+    ; Display third account's password
+    MOV AH, 09H
+    LEA DX, PASSWORD_LABEL
+    INT 21H
+    LEA SI, PASSWORD3 + 1
+    CALL DISPLAY_STRING
+    
+    MOV AH, 09h
+    LEA DX, Acc3
+    INT 21h
+    
+    MOV AH, 09H
+    LEA DX, NEWLINE
+    INT 21H
+    JMP CON1
+
+CHECK_ACCOUNT4:
+    ; Account 4
+    LEA SI, USERNAME4 + 1
+    MOV AL, [SI]
+    CMP AL, '$'
+    JE CHECK_ACCOUNT5
+    
+    ; Display fourth account's username
+    MOV AH, 09H
+    LEA DX, USERNAME_LABEL
+    INT 21H
+    LEA SI, USERNAME4 + 1
+    CALL DISPLAY_STRING
+    
+    ; Display fourth account's password
+    MOV AH, 09H
+    LEA DX, PASSWORD_LABEL
+    INT 21H
+    LEA SI, PASSWORD4 + 1
+    CALL DISPLAY_STRING
+    
+    MOV AH, 09h
+    LEA DX, Acc4
+    INT 21h
+    
+    MOV AH, 09H
+    LEA DX, NEWLINE
+    INT 21H
+    JMP CON1
+
+CHECK_ACCOUNT5:
+    ; Account 5
+    LEA SI, USERNAME5 + 1
+    MOV AL, [SI]
+    CMP AL, '$'
+    JE NO_MORE_ACCOUNTS
+    
+    
+    ; Display fifth account's username
+    MOV AH, 09H
+    LEA DX, USERNAME_LABEL
+    INT 21H
+    LEA SI, USERNAME5 + 1
+    CALL DISPLAY_STRING
+    
+    ; Display fifth account's password
+    MOV AH, 09H
+    LEA DX, PASSWORD_LABEL
+    INT 21H
+    LEA SI, PASSWORD5 + 1
+    CALL DISPLAY_STRING
+    
+    MOV AH, 09h
+    LEA DX, Acc5
+    INT 21h
+    
+    MOV AH, 09H
+    LEA DX, NEWLINE
+    INT 21H
+    JMP CON1
+
+NO_MORE_ACCOUNTS:
+    ; If accounts exist, display a message
+    MOV AH, 09H
+    LEA DX, NO_ACCOUNTS_FOUNDS
+    INT 21H
+    JMP CON1
+
+    CON1:
+    MOV AH, 09H
+    LEA DX, NEWLINE
+    INT 21H
+     MOV AH, 09H
+     LEA DX, str16
+     INT 21H
+
+     MOV AH, 1
+     INT 21H
+     SUB AL, 30H
+     MOV BL, AL
+     JMP AdminPanelLoop
+
+DISPLAY_ACCOUNT ENDP
+
+User_Login:
+    JMP MENU_LOOPB
+
+Term_And_Condition:
+    ; Clear screen function
+    MOV AX, 0600h
+    MOV BH, 07h
+    MOV CX, 0000h
+    MOV DX, 184Fh
+    INT 10h
+    
+    ; Display menu
+    MOV AH, 09h
+    LEA DX, Term
+    INT 21h
+
+    ; Term logic loop
+TermLoop:
+    CALL PROMPTTerm
+    CMP BL, 0
+    JE User_Login
+    JMP InvalidInputSecondT
+
+InvalidInputSecondT:
+    ; Display error message
+    MOV AH, 09h
+    LEA DX, errorMsg
+    INT 21h
+    JMP TermLoop
+
+Back_To_Main_Menus:
+    ; Clear screen function
+    MOV AX, 0600h
+    MOV BH, 07h
+    MOV CX, 0000h
+    MOV DX, 184Fh
+    INT 10h
+
+    ; PRINT LOGO
+    MOV AH, 09H
+    LEA DX, Logo
+    INT 21H
+
+    ; Display menu
+    MOV AH, 09h
+    LEA DX, mainMenu
+    INT 21h
+
+    ; Return to main loop
+    JMP MAIN
+
+PROMPTThird PROC
+    ; Display user prompt message
+    MOV AH, 09h
+    LEA DX, promptMsg
+    INT 21h
+    
+    ; Read user input
+    MOV AH, 01h
+    INT 21h
+    SUB AL, '0'
+    MOV BL, AL
+    RET
+PROMPTThird ENDP
+
+PROMPTTerm PROC
+    ; Display user prompt message
+    MOV AH, 09h
+    LEA DX, promptMsg
+    INT 21h
+    
+    ; Read user input
+    MOV AH, 01h
+    INT 21h
+    SUB AL, '0'
+    MOV BL, AL
+    RET
+PROMPTTerm ENDP
+
+MENU_LOOPB PROC
+    ; Clear screen function
+    MOV AX, 0600h
+    MOV BH, 07h
+    MOV CX, 0000h
+    MOV DX, 184Fh
+    INT 10h
+
+    ; Display menu
+    MOV AH,09H
+    LEA DX,MENU
+    INT 21H
+
+    ; Display user prompt message
+    MOV AH, 09h
+    LEA DX, promptMsg
+    INT 21h
+
+    ; Get user's choice
+    MOV AH,01H
+    INT 21H
+    SUB AL, '0'
+    MOV CHOICE, AL
+
+    ; Handle user's choice
+    CMP CHOICE, 1
+    JE CREATE_ACCOUNTs
+    CMP CHOICE, 2
+    JE LOGIN_ACCOUNTs
+    CMP CHOICE, 3
+    JE TAC
+    CMP CHOICE, 0
+    JE RETURN
+    JMP INVALID_CHOICE
+
+    TAC:
+    JMP Term_And_Condition
+
+CREATE_ACCOUNTs:
+    CALL CREATE_ACCOUNT
+    JMP MENU_LOOPB
+
+LOGIN_ACCOUNTs:
+    CALL LOGIN_ACCOUNT
+    JMP MENU_LOOPB
+
+RETURN:
+    JMP main_loop
+
+INVALID_CHOICE:
+    ; Handle invalid choice
+    MOV AH, 09H
+    LEA DX, FAILURE_MSG
+    INT 21H
+    JMP MENU_LOOPB
+
+MENU_LOOPB ENDP
+
+CREATE_ACCOUNT PROC
+    ; Initialize account number
+    MOV ACCOUNT_NUMBER, 1
+    
+CHECK_SLOT:
+    ; Check accounts sequentially until we find an empty one
+    CMP ACCOUNT_NUMBER, 1
+    JE CHECK_ACCOUNT1_EMPTY
+    CMP ACCOUNT_NUMBER, 2
+    JE CHECK_ACCOUNT2_EMPTY
+    CMP ACCOUNT_NUMBER, 3
+    JE CHECK_ACCOUNT3_EMPTY
+    CMP ACCOUNT_NUMBER, 4
+    JE CHECK_ACCOUNT4_EMPTY
+    CMP ACCOUNT_NUMBER, 5
+    JE CHECK_ACCOUNT5_EMPTY
+ 
+    
+    ; If we've checked all 10 accounts and none are empty
+    MOV AH, 09H
+    LEA DX, DATABASE_FULL_ACCOUNTS
+    INT 21H
+    MOV AX, 0040h
+    MOV ES, AX
+    MOV SI, 006Ch          ; Timer tick count
+    MOV AX, ES:[SI]        ; Get current tick count
+    ADD AX, 36             ; 36 ticks ≈ 2 seconds
+
+WAIT_TICKS:
+    CMP ES:[SI], AX
+    JB WAIT_TICKS
+
+    RET
+
+CHECK_ACCOUNT1_EMPTY:
+    LEA SI, USERNAME1 + 1
+    MOV AL, [SI]
+    CMP AL, '$'
+    JE CNA1
+    INC ACCOUNT_NUMBER
+    JMP CHECK_SLOT
+
+    CNA1:
+    JMP CREATE_NEW_ACCOUNT1
+
+CHECK_ACCOUNT2_EMPTY:
+    LEA SI, USERNAME2 + 1
+    MOV AL, [SI]
+    CMP AL, '$'
+    JE CNA2
+    INC ACCOUNT_NUMBER
+    JMP CHECK_SLOT
+
+    CNA2:
+    JMP CREATE_NEW_ACCOUNT2
+
+CHECK_ACCOUNT3_EMPTY:
+    LEA SI, USERNAME3 + 1
+    MOV AL, [SI]
+    CMP AL, '$'
+    JE CNA3
+    INC ACCOUNT_NUMBER
+    JMP CHECK_SLOT
+
+    CNA3:
+    JMP CREATE_NEW_ACCOUNT3
+
+CHECK_ACCOUNT4_EMPTY:
+    LEA SI, USERNAME4 + 1
+    MOV AL, [SI]
+    CMP AL, '$'
+    JE CNA4
+    INC ACCOUNT_NUMBER
+    JMP CHECK_SLOT
+
+    CNA4:
+    JMP CREATE_NEW_ACCOUNT4
+
+CHECK_ACCOUNT5_EMPTY:
+    LEA SI, USERNAME5 + 1
+    MOV AL, [SI]
+    CMP AL, '$'
+    JE CNA5
+    INC ACCOUNT_NUMBER
+    JMP CHECK_SLOT
+
+    CNA5:
+    JMP CREATE_NEW_ACCOUNT5
+
+; Create account procedures for each slot
+CREATE_NEW_ACCOUNT1:
+    ; Prompt for username
+    MOV AH, 09H
+    LEA DX, PROMPT_USER
+    INT 21H
+
+    MOV AH, 0AH
+    LEA DX, USERNAME1
+    INT 21H
+
+    ; Prompt for password
+    MOV AH, 09H
+    LEA DX, PROMPT_PASS
+    INT 21H
+
+    MOV AH, 0AH
+    LEA DX, PASSWORD1
+    INT 21H
+
+    ; Display the account auto generate
+    MOV AH, 09h
+    LEA DX, Acc1
+    INT 21h
+
+    ; Display success message
+    MOV AH, 09H
+    LEA DX, CREATE_SUS
+    INT 21H
+
+    MOV AX, 0040h
+    MOV ES, AX
+    MOV SI, 006Ch          ; Timer tick count
+    MOV AX, ES:[SI]        ; Get current tick count
+    ADD AX, 36             ; 36 ticks ≈ 2 seconds
+
+WAIT_TICKS1:
+    CMP ES:[SI], AX
+    JB WAIT_TICKS1
+
+    RET
+
+CREATE_NEW_ACCOUNT2:
+    ; Prompt for username
+    MOV AH, 09H
+    LEA DX, PROMPT_USER
+    INT 21H
+
+    MOV AH, 0AH
+    LEA DX, USERNAME2
+    INT 21H
+
+    ; Prompt for password
+    MOV AH, 09H
+    LEA DX, PROMPT_PASS
+    INT 21H
+
+    MOV AH, 0AH
+    LEA DX, PASSWORD2
+    INT 21H
+
+    ; Display the account auto generate
+    MOV AH, 09h
+    LEA DX, Acc2
+    INT 21h
+
+    ; Display success message
+    MOV AH, 09H
+    LEA DX, CREATE_SUS
+    INT 21H
+
+    MOV AX, 0040h
+    MOV ES, AX
+    MOV SI, 006Ch          ; Timer tick count
+    MOV AX, ES:[SI]        ; Get current tick count
+    ADD AX, 36             ; 36 ticks ≈ 2 seconds
+
+WAIT_TICKS2:
+    CMP ES:[SI], AX
+    JB WAIT_TICKS2
+    RET
+
+CREATE_NEW_ACCOUNT3:
+    ; Prompt for username
+    MOV AH, 09H
+    LEA DX, PROMPT_USER
+    INT 21H
+
+    MOV AH, 0AH
+    LEA DX, USERNAME3
+    INT 21H
+
+    ; Prompt for password
+    MOV AH, 09H
+    LEA DX, PROMPT_PASS
+    INT 21H
+
+    MOV AH, 0AH
+    LEA DX, PASSWORD3
+    INT 21H
+
+    ; Display the account auto generate
+    MOV AH, 09h
+    LEA DX, Acc3
+    INT 21h
+
+    ; Display success message
+    MOV AH, 09H
+    LEA DX, CREATE_SUS
+    INT 21H
+
+    MOV AX, 0040h
+    MOV ES, AX
+    MOV SI, 006Ch          ; Timer tick count
+    MOV AX, ES:[SI]        ; Get current tick count
+    ADD AX, 36             ; 36 ticks ≈ 2 seconds
+
+WAIT_TICKS3:
+    CMP ES:[SI], AX
+    JB WAIT_TICKS3
+    RET
+
+CREATE_NEW_ACCOUNT4:
+    ; Prompt for username
+    MOV AH, 09H
+    LEA DX, PROMPT_USER
+    INT 21H
+
+    MOV AH, 0AH
+    LEA DX, USERNAME4
+    INT 21H
+
+    ; Prompt for password
+    MOV AH, 09H
+    LEA DX, PROMPT_PASS
+    INT 21H
+
+    MOV AH, 0AH
+    LEA DX, PASSWORD4
+    INT 21H
+
+    ; Display the account auto generate
+    MOV AH, 09h
+    LEA DX, Acc4
+    INT 21h
+
+    ; Display success message
+    MOV AH, 09H
+    LEA DX, CREATE_SUS
+    INT 21H
+
+    MOV AX, 0040h
+    MOV ES, AX
+    MOV SI, 006Ch          ; Timer tick count
+    MOV AX, ES:[SI]        ; Get current tick count
+    ADD AX, 36             ; 36 ticks ≈ 2 seconds
+
+WAIT_TICKS4:
+    CMP ES:[SI], AX
+    JB WAIT_TICKS4
+    RET
+
+CREATE_NEW_ACCOUNT5:
+    ; Prompt for username
+    MOV AH, 09H
+    LEA DX, PROMPT_USER
+    INT 21H
+
+    MOV AH, 0AH
+    LEA DX, USERNAME5
+    INT 21H
+
+    ; Prompt for password
+    MOV AH, 09H
+    LEA DX, PROMPT_PASS
+    INT 21H
+
+    MOV AH, 0AH
+    LEA DX, PASSWORD5
+    INT 21H
+
+    ; Display the account auto generate
+    MOV AH, 09h
+    LEA DX, Acc5
+    INT 21h
+
+    ; Display success message
+    MOV AH, 09H
+    LEA DX, CREATE_SUS
+    INT 21H
+
+    MOV AX, 0040h
+    MOV ES, AX
+    MOV SI, 006Ch          ; Timer tick count
+    MOV AX, ES:[SI]        ; Get current tick count
+    ADD AX, 36             ; 36 ticks ≈ 2 seconds
+
+WAIT_TICKS5:
+    CMP ES:[SI], AX
+    JB WAIT_TICKS5
+    RET
+
+CREATE_ACCOUNT ENDP
+
+LOGIN_ACCOUNT PROC
+    ; Reset login attempt counter
+    MOV ATTEMPT_COUNT, 0
+
+LOGIN_ATTEMPT:
+    ; Prompt for username
+    MOV AH,09H
+    LEA DX,LOGIN_NAME
+    INT 21H
+
+    MOV AH,0AH
+    LEA DX,LOGIN_USER
+    INT 21H
+
+    ; Prompt for password
+    MOV AH,09H
+    LEA DX,LOGIN_PASS_MSG
+    INT 21H
+
+    MOV AH,0AH
+    LEA DX,LOGIN_PASS
+    INT 21H
+
+    ; Check against all 5 accounts
+    ; Compare with first account
+    MOV CURRENT_USER, 0
+    INC CURRENT_USER
+    LEA SI, USERNAME1 + 1
+    LEA DI, LOGIN_USER + 1
+    CALL CMP_LOOP_USERNAME
+    JNE CHECK_ACCOUNT2_LOGIN
+
+    ; If username matches, check password
+    LEA SI, PASSWORD1 + 1
+    LEA DI, LOGIN_PASS + 1
+    CALL CMP_LOOP_PASSWORD
+    JE LS
+    JMP LOGIN_FAILURE
+
+    LS:
+    JMP LOGIN_SUCCESS
+
+CHECK_ACCOUNT2_LOGIN:
+    ; Compare with second account
+    INC CURRENT_USER
+    LEA SI, USERNAME2 + 1
+    LEA DI, LOGIN_USER + 1
+    CALL CMP_LOOP_USERNAME
+    JNE CHECK_ACCOUNT3_LOGIN
+
+    ; If username matches, check password
+    LEA SI, PASSWORD2 + 1
+    LEA DI, LOGIN_PASS + 1
+    CALL CMP_LOOP_PASSWORD
+    JE LOGIN_SUCCESS
+    JMP LOGIN_FAILURE
+
+CHECK_ACCOUNT3_LOGIN:
+    ; Compare with third account
+    INC CURRENT_USER
+    LEA SI, USERNAME3 + 1
+    LEA DI, LOGIN_USER + 1
+    CALL CMP_LOOP_USERNAME
+    JNE CHECK_ACCOUNT4_LOGIN
+
+    ; If username matches, check password
+    LEA SI, PASSWORD3 + 1
+    LEA DI, LOGIN_PASS + 1
+    CALL CMP_LOOP_PASSWORD
+    JE LOGIN_SUCCESS
+    JMP LOGIN_FAILURE
+
+CHECK_ACCOUNT4_LOGIN:
+    ; Compare with fourth account
+    INC CURRENT_USER
+    LEA SI, USERNAME4 + 1
+    LEA DI, LOGIN_USER + 1
+    CALL CMP_LOOP_USERNAME
+    JNE CHECK_ACCOUNT5_LOGIN
+
+    ; If username matches, check password
+    LEA SI, PASSWORD4 + 1
+    LEA DI, LOGIN_PASS + 1
+    CALL CMP_LOOP_PASSWORD
+    JE LOGIN_SUCCESS
+    JMP LOGIN_FAILURE
+
+CHECK_ACCOUNT5_LOGIN:
+    ; Compare with fifth account
+    INC CURRENT_USER
+    LEA SI, USERNAME5 + 1
+    LEA DI, LOGIN_USER + 1
+    CALL CMP_LOOP_USERNAME
+
+    ; If username matches, check password
+    LEA SI, PASSWORD5 + 1
+    LEA DI, LOGIN_PASS + 1
+    CALL CMP_LOOP_PASSWORD
+    JE LOGIN_SUCCESS
+    JMP LOGIN_FAILURE
+
+
+LOGIN_SUCCESS:
+    MOV AH, 09H
+    LEA DX, SUCCESS_MSG
+    INT 21H
+    MOV AX, 0040h
+    MOV ES, AX
+    MOV SI, 006Ch          ; Timer tick count
+    MOV AX, ES:[SI]        ; Get current tick count
+    ADD AX, 36             ; 36 ticks ≈ 2 seconds
+
+    WAIT_TICKS7:
+    CMP ES:[SI], AX
+    JB WAIT_TICKS7
+    CALL BALANCE_INFORMATION_MENU
+    RET
+
+LOGIN_FAILURE:
+    INC ATTEMPT_COUNT
+    CMP ATTEMPT_COUNT, 3
+    JAE FORCE_EXIT
+
+    MOV AH,09H
+    LEA DX,FAILURE_MSG
+    INT 21H
+
+    JMP LOGIN_ATTEMPT
+
+FORCE_EXIT:
+    MOV AH, 09H
+    LEA DX, EXIT_MSG
+    INT 21H
+    MOV AX, 4C00H
+    INT 21H
+
+LOGIN_ACCOUNT ENDP
+
+CMP_LOOP_USERNAME PROC
+CMP_LOOP_USERNAMEQ:
+    MOV AL, [SI]
+    MOV BL, [DI]
+
+    CMP AL, '$'
+    JE USERNAME_MATCH
+    CMP AL, 13
+    JE USERNAME_MATCH
+
+    CMP AL, BL
+    JNE USERNAME_MISMATCH
+
+    INC SI
+    INC DI
+    JMP CMP_LOOP_USERNAMEQ
+
+USERNAME_MATCH:
+    CMP BL, 13
+    JE USERNAME_EQUAL
+    JNE USERNAME_MISMATCH
+
+USERNAME_EQUAL:
+    CMP AL, BL
+    JE USERNAME_SUCCESS
+    JNE USERNAME_MISMATCH
+
+USERNAME_SUCCESS:
+    MOV AL, 1
+    RET
+
+USERNAME_MISMATCH:
+    MOV AL, 0
+    RET
+CMP_LOOP_USERNAME ENDP
+
+CMP_LOOP_PASSWORD PROC
+
+CMP_LOOP_PASSWORDQ:
+    MOV AL, [SI]
+    MOV BL, [DI]
+
+    CMP AL, '$'
+    JE PASSWORD_MATCH
+    CMP AL, 13
+    JE PASSWORD_MATCH
+
+    CMP AL, BL
+    JNE PASSWORD_MISMATCH
+
+    INC SI
+    INC DI
+    JMP CMP_LOOP_PASSWORDQ
+
+PASSWORD_MATCH:
+    CMP BL, 13
+    JE PASSWORD_EQUAL
+    JNE PASSWORD_MISMATCH
+
+PASSWORD_EQUAL:
+    CMP AL, BL
+    JE PASSWORD_SUCCESS
+    JNE PASSWORD_MISMATCH
+
+PASSWORD_SUCCESS:
+    MOV AL, 1
+    RET
+
+PASSWORD_MISMATCH:
+    MOV AL, 0
+    RET
+	
+CMP_LOOP_PASSWORD ENDP
+
+BALANCE_INFORMATION_MENU PROC
+    ; Clear screen function
+     MOV AX, 0600h
+     MOV BH, 07h
+     MOV CX, 0000h
+     MOV DX, 184Fh
+     INT 10h
+    MOV AH, 09H
+    LEA DX, SUCCESS_MSG_EMPTY
+    INT 21H
+
+    ; Display Balance Information Menu
+    MOV AH, 09H
+    LEA DX, UserIdentity
+    INT 21H
+
+    ; Display user prompt message
+    MOV AH, 09h
+    LEA DX, promptMsg
+    INT 21h
+
+    ; Get user's choice in the balance information menu
+    MOV AH, 01H
+    INT 21H
+    SUB AL, '0'
+
+    ; Handle the balance information menu options
+    CMP AL, 1
+    JE TOP_UP_CREDIT
+    CMP AL, 2
+    JE CB
+    CMP AL, 3
+    JE OD
+    CMP AL, 4
+    JE CO
+    CMP AL, 0
+    JE LO
+
+    CB:
+    JMP CHECK_BALANCE
+    OD:
+    JMP JStart
+    CO: 
+    JMP CHECKOUT
+    LO:
+    JMP LOGOUT
+
+TOP_UP_CREDIT:
+    ; Clear screen function
+     MOV AX, 0600h
+     MOV BH, 07h
+     MOV CX, 0000h
+     MOV DX, 184Fh
+     INT 10h
+    ; Display top-up menu
+    LEA DX, TopUpMenu
+    MOV AH, 9
+    INT 21H
+
+    ; Get user choice
+    LEA DX, promptMsg
+    MOV AH, 9
+    INT 21H
+
+    MOV AH, 1
+    INT 21H
+    SUB AL, 30H
+    MOV BL, AL
+
+    CMP BL, 1
+    JE TOPUP_25
+    CMP BL, 2
+    JE TOPUP_50
+    CMP BL, 3
+    JE TOPUP_100
+    CMP BL, 4
+    JE TOPUP_200
+    CMP BL, 5
+    JE TOPUP_300
+    CMP BL, 6
+    JE TOPUP_500
+    CMP BL,7
+    JE BACKs
+
+    JMP TOP_UP_CREDIT  ; Invalid choice, show menu again
+
+TOPUP_25:
+    MOV BX, 2500  ; RM 25.00 in cents
+    JMP PROCESS_TOPUP
+
+TOPUP_50:
+    MOV BX, 5000  ; RM 50.00 in cents
+    JMP PROCESS_TOPUP
+
+TOPUP_100:
+    MOV BX, 10000  ; RM 100.00 in cents
+    JMP PROCESS_TOPUP
+
+TOPUP_200:
+    MOV BX, 20000  ; RM 200.00 in cents
+    JMP PROCESS_TOPUP
+
+TOPUP_300:
+    MOV BX, 30000  ; RM 300.00 in cents
+    JMP PROCESS_TOPUP
+
+TOPUP_500:
+    MOV BX, 50000   ; RM 500.00 in cents
+    JMP PROCESS_TOPUP
+
+BACKs:
+    JMP BALANCE_INFORMATION_MENU
+
+PROCESS_TOPUP:
+    ; Check if input exceeds max top-up amount
+    CMP BX, WORD PTR MAX_TOPUP
+    JA TOPUP_LIMIT_EXCEEDED
+
+    ; Get current user's balance
+    XOR SI, SI
+    MOV AL, CURRENT_USER
+    DEC AL
+    MOV CL, 4
+    MUL CL
+    MOV SI, AX
+    
+    ; Add the input amount (in BX) to the current balance
+    MOV AX, WORD PTR BALANCE[SI]
+    MOV DX, WORD PTR BALANCE[SI+2]
+    ADD AX, BX
+    ADC DX, 0  ; Add with carry for the high word
+    
+    ; Compare with MAX_BALANCE
+    CMP DX, WORD PTR MAX_BALANCE+2
+    JA BALANCE_LIMIT_EXCEEDED
+    JB UPDATE_BALANCE
+    CMP AX, WORD PTR MAX_BALANCE
+    JA BALANCE_LIMIT_EXCEEDED
+
+UPDATE_BALANCE:
+    MOV WORD PTR BALANCE[SI], AX
+    MOV WORD PTR BALANCE[SI+2], DX
+
+    ; Output current balance
+    LEA DX, M15
+    MOV AH, 9
+    INT 21H
+
+    MOV AX, WORD PTR BALANCE[SI]
+    MOV DX, WORD PTR BALANCE[SI+2]
+    CALL PRINT_BALANCE
+
+    JMP ACTION_USER
+
+BALANCE_LIMIT_EXCEEDED:
+    LEA DX, M18
+    MOV AH, 9
+    INT 21H
+    JMP ACTION_USER
+
+TOPUP_LIMIT_EXCEEDED:
+    LEA DX, M20  ; Message for exceeding top-up limit
+    MOV AH, 9
+    INT 21H
+    JMP ACTION_USER
+
+ACTION_USER:
+    ; Ask if the user wants to continue
+    LEA DX, M17
+    MOV AH, 9
+    INT 21H
+
+    LEA DX, promptMsg
+    MOV AH, 9
+    INT 21H
+
+    MOV AH, 1
+    INT 21H
+    SUB AL, 30H
+    MOV BL, AL
+    
+    CMP BL, 1
+    JE ACCOUNTa
+    CMP BL, 2
+    JE LOGOUT1
+
+    LOGOUT1:
+    JMP LOGOUT
+
+    JMP ACTION_USER
+
+ACCOUNTa:
+    JMP BALANCE_INFORMATION_MENU
+
+EXIT:
+    ; Exit routine
+    MOV AX, 4C00H
+    INT 21H
+
+CHECK_BALANCE:
+    LEA DX, M15
+    MOV AH, 9
+    INT 21H
+
+    XOR SI, SI
+    MOV AL, CURRENT_USER
+    DEC AL  ; Adjust for 0-based index
+    MOV CL, 4
+    MUL CL
+    MOV SI, AX
+    MOV AX, WORD PTR BALANCE[SI]
+    MOV DX, WORD PTR BALANCE[SI+2]
+    CALL PRINT_BALANCE
+
+    JMP ACTION_USER
+
+PRINT_BALANCE PROC
+    PUSH BX
+    PUSH CX
+
+    MOV BX, 100
+    DIV BX      ; AX now contains dollars, DX contains cents
+
+    ; Print dollars
+    PUSH DX     ; Save cents
+    CALL PRINT_NUMBER
+
+    ; Print decimal point
+    MOV DL, '.'
+    MOV AH, 2
+    INT 21H
+
+    ; Print cents
+    POP AX      ; Retrieve cents
+    MOV CH, 0
+    MOV CL, 2   ; Ensure two digits for cents
+    CALL PRINT_NUMBER_PADDED
+
+    ; Print newline
+    MOV AH, 2
+    MOV DL, 0DH
+    INT 21H
+    MOV DL, 0AH
+    INT 21H
+
+    POP CX
+    POP BX
+    RET
+PRINT_BALANCE ENDP
+
+PRINT_NUMBER PROC
+    PUSH AX
+    PUSH BX
+    PUSH CX
+    PUSH DX
+
+    XOR CX, CX
+    MOV BX, 10
+
+DIVIDE_LOOP:
+    XOR DX, DX
+    DIV BX
+    PUSH DX
+    INC CX
+    TEST AX, AX
+    JNZ DIVIDE_LOOP
+
+    ; If the number is zero, print a single '0'
+    CMP CX, 0
+    JNE PRINT_LOOP
+    MOV DL, '0'
+    MOV AH, 2
+    INT 21H
+    JMP PRINT_NUMBER_END
+
+PRINT_LOOP:
+    POP DX
+    ADD DL, '0'
+    MOV AH, 2
+    INT 21H
+    LOOP PRINT_LOOP
+
+PRINT_NUMBER_END:
+    POP DX
+    POP CX
+    POP BX
+    POP AX
+    RET
+PRINT_NUMBER ENDP
+
+PRINT_NUMBER_PADDED PROC
+    PUSH AX
+    PUSH BX
+    PUSH CX
+    PUSH DX
+
+    MOV BX, CX  ; Store required digits in BX
+    XOR CX, CX
+    MOV DI, 10
+
+DIVIDE_LOOP_PADDED:
+    XOR DX, DX
+    DIV DI
+    PUSH DX
+    INC CX
+    TEST AX, AX
+    JNZ DIVIDE_LOOP_PADDED
+
+PAD_LOOP:
+    CMP CX, BX
+    JGE PRINT_LOOP_PADDED
+    MOV AX, 0   ; Move 0 into AX register
+    PUSH AX     ; Push AX onto the stack
+    INC CX
+    JMP PAD_LOOP
+
+PRINT_LOOP_PADDED:
+    POP DX
+    ADD DL, '0'
+    MOV AH, 2
+    INT 21H
+    LOOP PRINT_LOOP_PADDED
+
+    POP DX
+    POP CX
+    POP BX
+    POP AX
+    RET
+PRINT_NUMBER_PADDED ENDP
+    JMP BALANCE_INFORMATION_MENU
+
+JStart:
+             ; Clear screen function
+             MOV AX, 0600h
+             MOV BH, 07h
+             MOV CX, 0000h
+             MOV DX, 184Fh
+             INT 10h
+
+             MOV AH, 09H
+             LEA DX, food_Menu
+             INT 21H
+
+             MOV AH, 09H
+             LEA DX, promptMsg
+             INT 21H
+
+        ;INPUT A DIGIT
+             MOV AH, 01H
+             INT 21H
+             SUB AL, 30H
+             MOV input_Opt, AL
+
+             CMP input_Opt, 0
+             JE JStart1
+             CMP input_Opt, 1 ;index 0
+             JE SETFCC
+             CMP input_Opt, 2 ;index 21
+             JE SETGSC
+             CMP input_Opt, 3 ;index 44
+             JE SETGSF1
+             CMP input_Opt, 4 ;index 64
+             JE SETPLUS1001
+             CMP input_Opt, 5 ;index 73
+             JE SETICS1
+             JMP WRONGINPUT3
+
+             SETGSF1:
+             JMP SETGSF
+
+             WRONGINPUT3:
+             MOV AH, 09H
+             LEA DX, nl
+             INT 21H
+
+             MOV AH, 09H
+             LEA DX, str6
+             INT 21H
+
+             MOV AX, 0040h
+             MOV ES, AX
+             MOV SI, 006Ch          ; Timer tick count
+             MOV AX, ES:[SI]        ; Get current tick count
+             ADD AX, 36             ; 36 ticks ≈ 2 seconds
+
+             WAIT_TICKSJ7:
+             CMP ES:[SI], AX
+             JB WAIT_TICKSJ7
+             JMP JStart
+
+             JStart1:
+             JMP BALANCE_INFORMATION_MENU
+             SETPLUS1001:
+             JMP SETPLUS100
+             SETICS1:
+             JMP SETICS
+
+             SETFCC:
+             MOV CURRENT_PRODUCT, 0
+             JMP FCC 
+
+             FCC:
+             MOV AH, 09H
+             LEA DX, nl
+             INT 21H
+
+             MOV AH, 09H
+             LEA DX, str1
+             INT 21H
+
+             MOV AH, 09H
+             LEA DX, promptMsg
+             INT 21H
+
+             MOV AH, 01H
+             INT 21H
+             SUB AL, 30H
+             MOV input_Qty, AL
+             JMP Back1
+
+             SETGSC:
+             MOV CURRENT_PRODUCT, 21
+             JMP GSC 
+
+             GSC:
+             MOV AH, 09H
+             LEA DX, nl
+             INT 21H
+
+             MOV AH, 09H
+             LEA DX, str1
+             INT 21H
+
+             MOV AH, 09H
+             LEA DX, promptMsg
+             INT 21H
+
+             MOV AH, 01H
+             INT 21H
+             SUB AL, 30H
+             MOV input_Qty, AL
+             JMP Back1
+
+             SETGSF:
+             MOV CURRENT_PRODUCT, 44
+             JMP GSF 
+
+             GSF:
+             MOV AH, 09H
+             LEA DX, nl
+             INT 21H
+
+             MOV AH, 09H
+             LEA DX, str1
+             INT 21H
+
+             MOV AH, 09H
+             LEA DX, promptMsg
+             INT 21H
+
+             MOV AH, 01H
+             INT 21H
+             SUB AL, 30H
+             MOV input_Qty, AL
+             JMP Back1
+
+             SETPLUS100:
+             MOV CURRENT_PRODUCT, 64
+             JMP PLUS100 
+
+             PLUS100:
+             MOV AH, 09H
+             LEA DX, nl
+             INT 21H
+
+             MOV AH, 09H
+             LEA DX, str1
+             INT 21H
+
+             MOV AH, 09H
+             LEA DX, promptMsg
+             INT 21H
+
+             MOV AH, 01H
+             INT 21H
+             SUB AL, 30H
+             MOV input_Qty, AL
+             JMP Back1
+
+             SETICS:
+             MOV CURRENT_PRODUCT, 73
+             JMP ICS 
+
+             ICS:
+             MOV AH, 09H
+             LEA DX, nl
+             INT 21H
+
+             MOV AH, 09H
+             LEA DX, str1
+             INT 21H
+
+             MOV AH, 09H
+             LEA DX, promptMsg
+             INT 21H
+
+             MOV AH, 01H
+             INT 21H
+             SUB AL, 30H
+             MOV input_Qty, AL
+             JMP Back1
+             ;cut here
+             Back1:
+             MOV AH, 09H
+             LEA DX, nl
+             INT 21H
+
+             MOV AH, 0
+             MOV AL, CURRENT_PRODUCT
+             MOV SI, AX
+             MOV AX, SI     ; Copy SI into AX
+             MOV AH, 09H
+             LEA DX, PRODUCT[SI]
+             INT 21H
+
+             MOV AH, 02H
+             MOV DL, "-"
+             INT 21H
+
+             MOV AH, 02H
+             MOV DL, input_Qty
+             ADD DL, 30H
+             INT 21H
+             JMP CONFIRMATION
+
+             CONFIRMATION:
+             MOV AH, 09H
+             LEA DX, nl
+             INT 21H
+
+             MOV AH, 09H
+             LEA DX, str2
+             INT 21H
+
+             MOV AH, 01H
+             INT 21H
+             MOV input_Opt, AL
+
+             CMP input_Opt, 'Y'
+             JE Confirm
+             CMP input_Opt, 'y'
+             JE Confirm
+             CMP input_Opt, 'N'
+             JE DENY
+             CMP input_Opt, 'n'
+             JE DENY
+             JMP WRONGINPUT
+             DENY:
+             JMP JStart
+
+             WRONGINPUT:
+             MOV AH, 09H
+             LEA DX, nl
+             INT 21H
+
+             MOV AH, 09H
+             LEA DX, str6
+             INT 21H
+
+             MOV AX, 0040h
+             MOV ES, AX
+             MOV SI, 006Ch          ; Timer tick count
+             MOV AX, ES:[SI]        ; Get current tick count
+             ADD AX, 36             ; 36 ticks ≈ 2 seconds
+
+             WAIT_TICKSJ2:
+             CMP ES:[SI], AX
+             JB WAIT_TICKSJ2
+             JMP Back1
+
+
+             Confirm:
+             JMP Jprocess
+
+             Jprocess:
+             MOV CX, 50
+             MOV SI, 0
+             JProcessRecord:
+             CMP CART_PRODUCT[SI], '$' 
+             JE ADDRECORD
+             INC SI
+             LOOP JProcessRecord
+
+             CMP SI, 50
+             JGE CARTFULL
+
+             ADDRECORD:
+             MOV AL, CURRENT_PRODUCT
+             MOV CART_PRODUCT[SI], AL
+             MOV AL, CURRENT_PRODUCT
+             MOV CART_PRODUCT_LENGTH[SI], AL
+             MOV AL, input_Qty
+             MOV CART_PRODUCT_QUATITY[SI], AL
+             INC CART_COUNT
+             MOV AH, 09H
+             JMP JProcessAdd
+
+             CARTFULL:
+             MOV AH, 09H
+             LEA DX, nl
+             INT 21H
+
+             MOV AH, 09H
+             LEA DX, str5
+             INT 21H
+
+             MOV AX, 0040h
+             MOV ES, AX
+             MOV SI, 006Ch          ; Timer tick count
+             MOV AX, ES:[SI]        ; Get current tick count
+             ADD AX, 36             ; 36 ticks ≈ 2 seconds
+
+             WAIT_TICKSJ:
+             CMP ES:[SI], AX
+             JB WAIT_TICKSJ
+             JMP BALANCE_INFORMATION_MENU
+
+             JProcessAdd:
+             ; Step 1: Load quantity from input_Qty
+             MOV AL, input_Qty
+             MOV AH, 0
+             MOV CX, AX           ; CX = quantity
+
+             CMP CURRENT_PRODUCT, 0
+             JE JSET1
+             CMP CURRENT_PRODUCT, 21
+             JE JSET2
+             CMP CURRENT_PRODUCT, 44
+             JE JSET3
+             CMP CURRENT_PRODUCT, 64
+             JE JSET4
+             CMP CURRENT_PRODUCT, 73
+             JE JSET5
+             
+             ; Step 2: Get CURRENT_PRODUCT index
+             JSET1:
+             MOV CAL_CURRENT_PRODUCT, 0
+             MOV AL, CAL_CURRENT_PRODUCT
+             MOV AH, 0
+             JMP SETDONE
+             JSET2:
+             MOV CAL_CURRENT_PRODUCT, 1
+             MOV AL, CAL_CURRENT_PRODUCT
+             MOV AH, 0
+             JMP SETDONE
+             JSET3:
+             MOV CAL_CURRENT_PRODUCT, 2
+             MOV AL, CAL_CURRENT_PRODUCT
+             MOV AH, 0
+             JMP SETDONE
+             JSET4:
+             MOV CAL_CURRENT_PRODUCT, 3
+             MOV AL, CAL_CURRENT_PRODUCT
+             MOV AH, 0
+             JMP SETDONE
+             JSET5:
+             MOV CAL_CURRENT_PRODUCT, 4
+             MOV AL, CAL_CURRENT_PRODUCT
+             MOV AH, 0
+
+             SETDONE:
+             MOV BX, AX           ; BX = CURRENT_PRODUCT
+
+             ADD BX, BX           ; BX = BX * 2
+             ADD BX, BX           ; BX = BX * 4
+             MOV SI, BX           ; SI = offset into FOOD_PRICE
+
+             ; Step 3: Get FOOD_PRICE[SI] (32-bit unit price)
+             MOV AX, WORD PTR FOOD_PRICE[SI]
+             MOV DX, WORD PTR FOOD_PRICE[SI+2]
+
+             ; Store original 32-bit price
+             MOV TEMP_LOW, AX
+             MOV TEMP_HIGH, DX
+
+             ; Multiply low word by quantity
+             MOV AX, TEMP_LOW
+             MUL CX               ; AX * CX → DX:AX
+             MOV TEMP_LOW, AX     ; store low 16 bits of result
+             MOV TEMP_HIGH, DX    ; store high 16 bits of result
+
+             ; Multiply high word by quantity
+             MOV AX, TEMP_HIGH
+             MUL CX               ; AX * CX → DX:AX
+
+             ADD TEMP_HIGH, AX    ; add to previously stored high
+             ADC DX, 0
+
+             MOV AX, TEMP_LOW
+             ADD WORD PTR CART_TOTAL, AX
+
+             MOV AX, TEMP_HIGH
+             ADC WORD PTR CART_TOTAL+2, AX
+
+             ; Step 4: Store result as string in CART_TOTAL_STR
+
+             ; AX = upper 16 bits of total
+             ; TEMP_LOW = lower 16 bits of total
+             ; DI = CART_TOTAL_STR offset (index * 6)
+
+             MOV AL, CAL_CURRENT_PRODUCT
+             MOV AH, 0
+             MOV CX, 6
+             MUL CX               ; AX = index * 6
+             MOV DI, OFFSET CART_TOTAL_STR
+             ADD DI, AX           ; DI = CART_TOTAL_STR + (index * 6)
+
+             ; DX:AX is the full 32-bit total to convert
+             MOV AX, TEMP_LOW     ; load lower word into AX
+             MOV BX, 100
+             DIV BX
+             CALL ConvertTotalToStr
+
+             MOV AH, 09H
+             LEA DX, nl
+             INT 21H
+
+             MOV AH, 09H
+             LEA DX, str3
+             INT 21H
+
+             MOV AX, 0040h
+             MOV ES, AX
+             MOV SI, 006Ch          ; Timer tick count
+             MOV AX, ES:[SI]        ; Get current tick count
+             ADD AX, 36             ; 36 ticks ≈ 2 seconds
+
+             WAIT_TICKSJ4:
+             CMP ES:[SI], AX
+             JB WAIT_TICKSJ4
+
+             Back2:
+             MOV AH, 09H
+             LEA DX, nl
+             INT 21H
+
+             MOV AH, 09H
+             LEA DX, str4
+             INT 21H
+
+             MOV AH, 09H
+             LEA DX, promptMsg
+             INT 21H
+
+             MOV AH, 01H
+             INT 21H
+             SUB AL, 30H
+             MOV input_Opt, AL
+
+             CMP input_Opt, 1
+             JE Confirm1
+             CMP input_Opt, 2
+             JE CHECKOUT
+             CMP input_Opt, 3
+             JE DENY2
+             JMP WRONGINPUT2
+
+             DENY2:
+             JMP BALANCE_INFORMATION_MENU
+
+             WRONGINPUT2:
+             MOV AH, 09H
+             LEA DX, nl
+             INT 21H
+             MOV AH, 09H
+             LEA DX, str6
+             INT 21H
+
+             MOV AX, 0040h
+             MOV ES, AX
+             MOV SI, 006Ch          ; Timer tick count
+             MOV AX, ES:[SI]        ; Get current tick count
+             ADD AX, 36             ; 36 ticks ≈ 2 seconds
+
+             WAIT_TICKSJ3:
+             CMP ES:[SI], AX
+             JB WAIT_TICKSJ3
+             JMP Back2
+
+             Confirm1:
+             JMP JStart
+
+             CHECKOUT:
+             ; Clear screen function
+    MOV AX, 0600h
+    MOV BH, 07h
+    MOV CX, 0000h
+    MOV DX, 184Fh
+    INT 10h
+             MOV AH, 09H
+             LEA DX, checkout_Page
+             INT 21H
+
+             CMP CART_COUNT, 0
+             JE EMPTY_CART 
+             JMP JNEXT7
+
+             EMPTY_CART:
+             MOV AH, 09H
+             LEA DX, str14
+             INT 21H
+             JMP JNEXT6
+
+             JNEXT7:
+             MOV AH, 0
+             MOV AL, CART_COUNT
+
+             MOV SI, 0
+             MOV CH, 1
+             MOV CL, CART_COUNT
+
+             JCheckOut:
+             MOV AH,02H
+             MOV DL, ' '
+             INT 21H
+             MOV AH,02H
+             MOV DL, ' '
+             INT 21H
+             MOV AH,02H
+             MOV DL, INDEX_NUM
+             ADD DL, 30H
+             INT 21H
+
+             MOV AH,02H
+             MOV DL, ' '
+             INT 21H
+             MOV AL, CART_PRODUCT[SI]
+             MOV AH, 0
+             MOV DI, AX
+             MOV AH, 09H
+             LEA DX, PRODUCT[DI]
+             INT 21H
+             CMP CART_PRODUCT_LENGTH[SI], 0
+             JE SPACE1
+             CMP CART_PRODUCT_LENGTH[SI], 21
+             JE SPACE2
+             CMP CART_PRODUCT_LENGTH[SI], 44
+             JE SPACE3
+             CMP CART_PRODUCT_LENGTH[SI], 64
+             JE SPACE4
+             CMP CART_PRODUCT_LENGTH[SI], 73
+             JE SPACE5
+             JMP SMTGWW
+             
+             SPACE1:
+             MOV BH, 0
+             MOV BL, 6
+             S1:
+             MOV AH,02H
+             MOV DL, ' '
+             INT 21H
+             INC BH
+             CMP BH, BL
+             JL S1
+             JMP JNEXT
+             SPACE2:
+             MOV BH, 0
+             MOV BL, 4
+             S2:
+             MOV AH,02H
+             MOV DL, ' '
+             INT 21H
+             INC BH
+             CMP BH, BL
+             JL S2
+             JMP JNEXT
+             SPACE3:
+             MOV BH, 0
+             MOV BL, 7
+             S3:
+             MOV AH,02H
+             MOV DL, ' '
+             INT 21H
+             INC BH
+             CMP BH, BL
+             JL S3
+             JMP JNEXT
+             SPACE4:
+             MOV BH, 0
+             MOV BL, 18
+             S4:
+             MOV AH,02H
+             MOV DL, ' '
+             INT 21H
+             INC BH
+             CMP BH, BL
+             JL S4
+             JMP JNEXT
+             SPACE5:
+             MOV BH, 0
+             MOV BL, 13
+             S5:
+             MOV AH,02H
+             MOV DL, ' '
+             INT 21H
+             INC BH
+             CMP BH, BL
+             JL S5
+             JMP JNEXT
+
+             JNEXT:
+             MOV AH,02H
+             MOV DL, CART_PRODUCT_QUATITY[SI]
+             ADD DL,30H
+             INT 21H
+
+             MOV BH, 0
+             MOV BL, 4
+             SPACE6:
+             MOV AH,02H
+             MOV DL, ' '
+             INT 21H
+             INC BH
+             CMP BH, BL
+             JL SPACE6
+
+             CMP DI, 0
+             JE PRICE1
+             CMP DI, 21 
+             JE PRICE2
+             CMP DI, 44
+             JE PRICE3
+             CMP DI, 64 
+             JE PRICE4
+             CMP DI, 73 
+             JE PRICE5
+             JMP SMTGWW
+
+
+             PRICE1:
+             MOV DI, 0
+             JMP JNEXT3
+             PRICE2:
+             MOV DI, 6
+             JMP JNEXT3
+             PRICE3:
+             MOV DI, 12
+             JMP JNEXT3
+             PRICE4:
+             MOV DI, 18
+             JMP JNEXT3
+             PRICE5:
+             MOV DI, 24
+             JMP JNEXT3
+
+             JNEXT3:
+
+             MOV AH, 09H
+             LEA DX, FOOD_PRICE_STR[DI]
+             INT 21H
+
+             MOV BH, 0
+             MOV BL, 8
+             SPACE7:
+             MOV AH,02H
+             MOV DL, ' '
+             INT 21H
+             INC BH
+             CMP BH, BL
+             JL SPACE7
+
+             LEA DX, CART_TOTAL_STR[DI]
+             MOV AH, 09H
+             INT 21h
+
+             MOV AH, 09H
+             LEA DX, str7
+             INT 21H
+
+             MOV AH, 09H
+             LEA DX, nl
+             INT 21H
+
+             CMP CH, CL
+             JL JNEXT2
+             JMP JPRINT_TOTAL
+
+             JNEXT2:
+             INC CH
+             INC INDEX_NUM
+             INC SI
+             JMP JCheckOut
+
+             JPRINT_TOTAL:
+             MOV AH, 09H
+             LEA DX, str8
+             INT 21H
+             ; Prepare for printing
+             CALL JPRINT_CART_TOTAL
+             Back3:
+             MOV AH, 09H
+             LEA DX, str9
+             INT 21H
+             MOV AH, 09H
+             LEA DX, promptMsg
+             INT 21H
+             MOV AH, 01H
+             INT 21H
+             SUB AL, 30H
+             MOV input_Opt, AL
+             CMP input_Opt, 1
+             JE PAYMENT
+             CMP input_Opt, 2
+             JE BALANCE_INFORMATION_MENU3
+             JMP WRONGINPUT5
+
+             BALANCE_INFORMATION_MENU3:
+             MOV INDEX_NUM, 1
+             JMP BALANCE_INFORMATION_MENU
+
+             WRONGINPUT5:
+             MOV AH, 09H
+             LEA DX, nl
+             INT 21H
+             MOV AH, 09H
+             LEA DX, str6
+             INT 21H
+
+             MOV AX, 0040h
+             MOV ES, AX
+             MOV SI, 006Ch          ; Timer tick count
+             MOV AX, ES:[SI]        ; Get current tick count
+             ADD AX, 36             ; 36 ticks ≈ 2 seconds
+
+             WAIT_TICKSJ9:
+             CMP ES:[SI], AX
+             JB WAIT_TICKSJ9
+             JMP Back3
+
+             PAYMENT:
+             MOV BX, 4           ; 4 bytes per DD
+             MOV AL, CURRENT_USER
+             SUB AL, 1
+             MOV AH, 0           ; make AL into AX
+             MUL BX              ; AX = CURRENT_USER * 4
+             LEA DI, BALANCE
+             ADD DI, AX          ; DI = address of BALANCE[CURRENT_USER]
+             ;read user balance
+             MOV AX, [DI]       ; low word
+             MOV DX, [DI+2]     ; high word
+
+             ; Store into temp for comparison
+             MOV TEMP_LOW, AX
+             MOV TEMP_HIGH, DX
+
+             ; Step 2: Load CART_TOTAL into CX:BX
+             MOV CX, WORD PTR CART_TOTAL
+             MOV BX, WORD PTR CART_TOTAL+2
+
+             ; Step 3: Compare BALANCE vs CART_TOTAL
+
+             ; High words are equal, compare low word
+             CMP TEMP_HIGH, BX
+             JB JNOT_ENOUGH       
+             JA JENOUGH_BALANCE   
+
+             CMP TEMP_LOW, CX
+             JB JNOT_ENOUGH       
+             JA JENOUGH_BALANCE   
+             JMP JENOUGH_BALANCE
+
+             JENOUGH_BALANCE:
+             ; Now subtract
+             ; Sub low word
+             MOV AX, TEMP_LOW
+             SUB AX, CX
+             MOV TEMP_LOW, AX
+
+             ; Sub high word with borrow
+             MOV AX, TEMP_HIGH
+             SBB AX, BX
+             MOV TEMP_HIGH, AX
+
+             ; Now store back to BALANCE[CURRENT_USER]
+             MOV AX, TEMP_LOW
+             MOV [DI], AX
+             MOV AX, TEMP_HIGH
+             MOV [DI+2], AX
+             CALL JEMPTY_DATA
+             MOV AH, 09H
+             LEA DX, nl
+             INT 21H
+             MOV AH, 09H
+             LEA DX, str12
+             INT 21H
+             MOV AX, 0040h
+             MOV ES, AX
+             MOV SI, 006Ch          ; Timer tick count
+             MOV AX, ES:[SI]        ; Get current tick count
+             ADD AX, 36             ; 36 ticks ≈ 2 seconds
+
+             
+             WAIT_TICKSJ5:
+             CMP ES:[SI], AX
+             JB WAIT_TICKSJ5
+             JMP JNEXT6
+
+             JNOT_ENOUGH:
+             MOV AH, 09H
+             LEA DX, nl
+             INT 21H
+             MOV AH, 09H
+             LEA DX, str10
+             INT 21H
+             MOV AH, 09H
+             MOV AX, 0040h
+             MOV ES, AX
+             MOV SI, 006Ch          ; Timer tick count
+             MOV AX, ES:[SI]        ; Get current tick count
+             ADD AX, 36             ; 36 ticks ≈ 2 seconds
+
+             WAIT_TICKSJ6:
+             CMP ES:[SI], AX
+             JB WAIT_TICKSJ6
+             JMP JNEXT6
+
+             JNEXT6:
+             MOV AH, 09H
+             LEA DX, nl
+             INT 21H
+             MOV AH, 09H
+             LEA DX, str11
+             INT 21H
+             MOV AH, 09H
+             LEA DX, promptMsg
+             INT 21H
+             MOV AH, 01H
+             INT 21H
+             SUB AL, 30H
+             MOV input_Opt, AL
+             CMP input_Opt, 1
+             JE BLC
+             CMP input_Opt, 2
+             JE BALANCE_INFORMATION_MENU2
+             JMP JStart
+
+             BALANCE_INFORMATION_MENU2:
+             MOV INDEX_NUM, 1
+             JMP BALANCE_INFORMATION_MENU
+
+             BLC:
+             MOV INDEX_NUM, 1
+             JMP CHECK_BALANCE
+
+             SMTGWW:
+             MOV AH,02H
+             MOV DL, nl
+             INT 21H
+             MOV AH, 09H
+             LEA DX, ERROR404
+             INT 21H
+             JMP EXIT
+
+           ConvertTotalToStr PROC
+             PUSH AX
+             PUSH BX
+             PUSH CX
+             PUSH DX
+             PUSH SI
+
+             ; Use a temp buffer to build digits in reverse
+             MOV SI, OFFSET TEMP_BUFFER + 9
+             MOV CX, 0
+             MOV BX, 10
+
+             ConvertLoop:
+             XOR DX, DX           ; clear DX for DIV
+             DIV BX               ; DX:AX / 10 → quotient in AX, remainder in DX
+             ADD DL, '0'
+             DEC SI
+             MOV [SI], DL
+             INC CX               ; count of digits
+             CMP AX, 0
+             JNZ ConvertLoop
+
+             ; SI now points to first ASCII digit
+             ; DI is destination in CART_TOTAL_STR
+             CopyLoop:
+             MOV AL, [SI]
+             MOV [DI], AL
+             INC SI
+             INC DI
+             LOOP CopyLoop
+
+             ; Null-terminate with '$' (optional)
+             MOV BYTE PTR [DI], '$'
+
+             POP SI
+             POP DX
+             POP CX
+             POP BX
+             POP AX
+             RET
+          ConvertTotalToStr ENDP
+
+          JPRINT_CART_TOTAL PROC
+             PUSH AX
+             PUSH BX
+             PUSH CX
+             PUSH DX
+
+             ; Load CART_TOTAL into AX (low) and DX (high)
+             MOV AX, WORD PTR CART_TOTAL
+             XOR DX,DX
+             MOV BX, 100
+             DIV BX         ; AX now = dollars, DX = cents
+             ; Print dollars
+             CALL JPRINT_NUMBER
+
+             ; Print decimal point '.'
+             MOV DL, '.'
+             MOV AH, 02H
+             INT 21H
+
+             MOV DX, 0
+             ; Print cents padded (always 2 digits)
+             MOV AX, DX     ; move cents into AX
+             CALL JPRINT_NUMBER_PADDED
+
+             ; New line (optional)
+             MOV DL, 0DH
+             MOV AH, 02H
+             INT 21H
+             MOV DL, 0AH
+             MOV AH, 02H
+             INT 21H
+
+             POP DX
+             POP CX
+             POP BX
+             POP AX
+             RET
+          JPRINT_CART_TOTAL ENDP
+
+          JPRINT_NUMBER PROC
+             PUSH AX
+             PUSH BX
+             PUSH CX
+             PUSH DX
+
+             XOR CX, CX
+             MOV BX, 10
+
+             JDIVIDE_LOOP:
+             XOR DX, DX
+             DIV BX
+             PUSH DX
+             INC CX
+             TEST AX, AX
+             JNZ JDIVIDE_LOOP
+
+             ; If no digits, print 0
+             CMP CX, 0
+             JNE JPRINT_LOOP
+             MOV DL, '0'
+             MOV AH, 2
+             INT 21H
+             JMP JPRINT_NUMBER_DONE
+
+             JPRINT_LOOP:
+             POP DX
+             ADD DL, '0'
+             MOV AH, 2
+             INT 21H
+             LOOP JPRINT_LOOP
+
+             JPRINT_NUMBER_DONE:
+             POP DX
+             POP CX
+             POP BX
+             POP AX
+             RET
+          JPRINT_NUMBER ENDP
+
+          JPRINT_NUMBER_PADDED PROC
+             PUSH AX
+             PUSH BX
+             PUSH CX
+             PUSH DX
+
+             ; BX = 10
+             MOV BX, 10
+
+             XOR CX, CX
+
+             JDIVIDE_LOOP_PADDED:
+             XOR DX, DX
+             DIV BX
+             PUSH DX
+             INC CX
+             TEST AX, AX
+             JNZ JDIVIDE_LOOP_PADDED
+
+             ; Padding if needed
+             CMP CX, 2
+             JGE JPRINT_LOOP_PADDED
+
+             ; Print leading '0'
+             MOV DL, '0'
+             MOV AH, 2
+             INT 21H
+
+             JPRINT_LOOP_PADDED:
+             POP DX
+             ADD DL, '0'
+             MOV AH, 2
+             INT 21H
+             LOOP JPRINT_LOOP_PADDED
+
+             POP DX
+             POP CX
+             POP BX
+             POP AX
+             RET
+          JPRINT_NUMBER_PADDED ENDP
+
+          JEMPTY_DATA PROC
+
+    MOV INDEX_NUM, 1
+
+    ; Clear CART_TOTAL (32 bits)
+    MOV WORD PTR CART_TOTAL, 0
+    MOV WORD PTR CART_TOTAL+2, 0
+
+    ; Clear CART_PRODUCT (50 bytes)
+    MOV CX, 50
+    LEA DI, CART_PRODUCT
+ClearCartProductLoop:
+    MOV BYTE PTR [DI], '$'
+    INC DI
+    LOOP ClearCartProductLoop
+
+    ; Clear CART_PRODUCT_QUANTITY (50 bytes)
+    MOV CX, 50
+    LEA DI, CART_PRODUCT_QUATITY
+ClearCartProductQuantityLoop:
+    MOV BYTE PTR [DI], '$'
+    INC DI
+    LOOP ClearCartProductQuantityLoop
+
+    ; Clear CART_TOTAL_STR (50 bytes)
+    MOV CX, 50
+    LEA DI, CART_TOTAL_STR
+ClearCartTotalStrLoop:
+    MOV BYTE PTR [DI], '$'
+    INC DI
+    LOOP ClearCartTotalStrLoop
+
+    ; Clear CART_COUNT
+    MOV CART_COUNT, 0
+    RET
+JEMPTY_DATA ENDP
+
+LOGOUT:
+
+    MOV AH, 09h
+    LEA DX, nl
+    INT 21h
+    MOV AH, 09h
+    LEA DX, str13
+    INT 21h
+
+    MOV AH, 01H
+    INT 21H
+    SUB AL, 30H
+    MOV input_Opt, AL
+
+    CMP input_Opt, 1
+    JE JLOGOUT
+    CMP input_Opt, 2
+    JE BALANCE_INFORMATION_MENU1
+    JMP WRONGINPUT4
+
+    BALANCE_INFORMATION_MENU1:
+    JMP BALANCE_INFORMATION_MENU
+
+    WRONGINPUT4:
+    MOV AH, 09H
+    LEA DX, nl
+    INT 21H
+    MOV AH, 09H
+    LEA DX, str6
+    INT 21H
+
+    MOV AX, 0040h
+    MOV ES, AX
+    MOV SI, 006Ch          ; Timer tick count
+    MOV AX, ES:[SI]        ; Get current tick count
+    ADD AX, 36             ; 36 ticks ≈ 2 seconds
+
+    WAIT_TICKSJ8:
+    CMP ES:[SI], AX
+    JB WAIT_TICKSJ8
+    JMP LOGOUT
+
+    JLOGOUT:
+    CALL JEMPTY_DATA
+    MOV AH, 09H
+    LEA DX, LOG_OUT
+    INT 21H
+    RET
+BALANCE_INFORMATION_MENU ENDP
+
+; Display a string at SI (assuming it's stored in Pascal format)
+DISPLAY_STRING PROC
+    MOV CX, 20 ; Max length of the string
+NEXT_CHAR:
+    LODSB
+    CMP AL, 13
+    JE END_DISPLAY
+    CMP AL, 32
+    JB NEXT_CHAR
+    CMP AL, 126
+    JA NEXT_CHAR
+    MOV DL, AL
+    MOV AH, 02H
+    INT 21H
+    LOOP NEXT_CHAR
+END_DISPLAY:
+    RET
+DISPLAY_STRING ENDP
+
+END MAIN
